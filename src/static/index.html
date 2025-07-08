@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema de Feedback - Funcionários</title>
+    <title>FeedFort - Funcionários</title>
     <link rel="stylesheet" href="styles.css">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 </head>
@@ -19,7 +19,7 @@
         <div class="container">
             <h1 class="logo">
                 <i class="fas fa-comments"></i>
-                Sistema de Feedback
+                FeedFort
             </h1>
             <div class="user-info hidden" id="userInfo">
                 <span id="userName"></span>
@@ -62,11 +62,6 @@
                             Entrar
                         </button>
                     </form>
-                    <div class="login-info">
-                        <p><strong>Usuários de teste:</strong></p>
-                        <p>Admin: admin / admin123</p>
-                        <p>Usuário: usuario / usuario123</p>
-                    </div>
                 </div>
             </div>
 
@@ -106,7 +101,7 @@
                     <div class="type-card" onclick="selectFeedbackType('diario')">
                         <i class="fas fa-calendar-day"></i>
                         <h3>Diário</h3>
-                        <p>Avaliação diária com notas de 0 a 5</p>
+                        <p>Avaliação diária com notas de 1 a 5</p>
                     </div>
                     <div class="type-card positive" onclick="selectFeedbackType('positiva')">
                         <i class="fas fa-thumbs-up"></i>
@@ -238,6 +233,80 @@
             </div>
         </div>
     </main>
+
+    <!-- Modal para Gerenciamento de Atributos -->
+    <div id="attributeModal" class="modal hidden">
+        <div class="modal-overlay" onclick="closeAttributeModal()"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Gerenciamento de Atributos por Setor</h3>
+                <button class="modal-close" onclick="closeAttributeModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="attributeSectorSelect">Selecione um Setor</label>
+                    <select id="attributeSectorSelect" onchange="renderAttributeList(this.value)">
+                        <option value="">-- Selecione --</option>
+                    </select>
+                </div>
+                <div id="attributeListContainer"></div>
+                <div id="attributeFormContainer"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para Gerenciamento de Usuários -->
+    <div id="userModal" class="modal hidden">
+        <div class="modal-overlay" onclick="closeUserModal()"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Gerenciamento de Usuários</h3>
+                <button class="modal-close" onclick="closeUserModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div id="modalUserFormContainer"></div>
+                <div id="modalUserList"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para Gerenciamento de Setores -->
+    <div id="sectorModal" class="modal hidden">
+        <div class="modal-overlay" onclick="closeSectorModal()"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Gerenciamento de Setores</h3>
+                <button class="modal-close" onclick="closeSectorModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div id="modalSectorFormContainer"></div>
+                <div id="modalSectorListContainer"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para Gerenciamento de Funcionários -->
+    <div id="employeeModal" class="modal hidden">
+        <div class="modal-overlay" onclick="closeEmployeeModal()"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Gerenciamento de Funcionários</h3>
+                <button class="modal-close" onclick="closeEmployeeModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div id="modalEmployeeFormContainer"></div>
+                <div id="modalEmployeeList"></div>
+            </div>
+        </div>
+    </div>
 
     <!-- Toast Notifications -->
     <div id="toast" class="toast hidden">

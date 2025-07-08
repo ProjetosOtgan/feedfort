@@ -194,90 +194,116 @@ async function loadSectors() {
 
 // Gerenciamento
 async function showUserManagement() {
-    const adminContent = document.getElementById('adminContent');
-    adminContent.innerHTML = '<h3>Carregando...</h3>';
-
+    showLoading();
+    
     const users = await apiRequest('/usuarios');
-
+    
     if (users) {
-        adminContent.innerHTML = `
-            <h3>Gerenciamento de Usuários</h3>
-            <div id="userFormContainer"></div>
-            <div id="userList"></div>
-        `;
-        renderUserList(users);
-        renderUserForm();
+        const modal = document.getElementById('userModal');
+        modal.classList.remove('hidden');
+        
+        renderModalUserList(users);
+        renderModalUserForm();
     }
+    
+    hideLoading();
 }
 
-function renderUserList(users) {
-    const userList = document.getElementById('userList');
+function closeUserModal() {
+    const modal = document.getElementById('userModal');
+    modal.classList.add('hidden');
+    
+    // Limpar conteúdo do modal
+    document.getElementById('modalUserFormContainer').innerHTML = '';
+    document.getElementById('modalUserList').innerHTML = '';
+}
+
+function renderModalUserList(users) {
+    const userList = document.getElementById('modalUserList');
+    
+    if (users.length === 0) {
+        userList.innerHTML = `
+            <div class="modal-empty-state">
+                <i class="fas fa-users"></i>
+                <p>Nenhum usuário cadastrado</p>
+            </div>
+        `;
+        return;
+    }
+    
     userList.innerHTML = `
-        <h4>Usuários Existentes</h4>
-        <table class="management-table">
-            <thead>
-                <tr>
-                    <th>Usuário</th>
-                    <th>Email</th>
-                    <th>Tipo</th>
-                    <th>Ações</th>
-                </tr>
-            </thead>
-            <tbody>
-                ${users.map(user => `
-                    <tr>
-                        <td>${user.username}</td>
-                        <td>${user.email}</td>
-                        <td>${user.user_type}</td>
-                        <td>
-                            <button class="btn-edit" onclick="renderUserForm(${JSON.stringify(user).replace(/"/g, "'")})">Editar</button>
-                            <button class="btn-delete" onclick="deleteUser(${user.id})">Excluir</button>
-                        </td>
-                    </tr>
-                `).join('')}
-            </tbody>
-        </table>
+        <div class="modal-section">
+            <h4><i class="fas fa-users"></i> Usuários Existentes</h4>
+            <div class="modal-table-container">
+                <table class="modal-table">
+                    <thead>
+                        <tr>
+                            <th>Usuário</th>
+                            <th>Email</th>
+                            <th>Tipo</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${users.map(user => `
+                            <tr>
+                                <td>${user.username}</td>
+                                <td>${user.email}</td>
+                                <td><span class="user-type-badge ${user.user_type}">${user.user_type}</span></td>
+                                <td>
+                                    <button class="btn-edit" onclick="renderModalUserForm(${JSON.stringify(user).replace(/"/g, "'")})"><i class="fas fa-edit"></i></button>
+                                    <button class="btn-delete" onclick="deleteUser(${user.id})" title="Excluir usuário"><i class="fas fa-trash"></i></button>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        </div>
     `;
 }
 
-function renderUserForm(user = null) {
-    const userFormContainer = document.getElementById('userFormContainer');
+function renderModalUserForm(user = null) {
+    const userFormContainer = document.getElementById('modalUserFormContainer');
     const isEditing = user !== null;
 
     userFormContainer.innerHTML = `
-        <div class="form-card">
-            <h4>${isEditing ? 'Editar Usuário' : 'Adicionar Novo Usuário'}</h4>
-            <form id="userForm">
+        <div class="modal-section">
+            <h4><i class="fas fa-user-plus"></i> ${isEditing ? 'Editar Usuário' : 'Adicionar Novo Usuário'}</h4>
+            <form id="modalUserForm" class="modal-form">
                 <input type="hidden" name="id" value="${user ? user.id : ''}">
                 <div class="form-group">
-                    <label for="userUsername">Usuário</label>
-                    <input type="text" id="userUsername" name="username" value="${user ? user.username : ''}" required>
+                    <label for="modalUserUsername">Usuário</label>
+                    <input type="text" id="modalUserUsername" name="username" value="${user ? user.username : ''}" placeholder="Digite o nome de usuário" required>
                 </div>
                 <div class="form-group">
-                    <label for="userEmail">Email</label>
-                    <input type="email" id="userEmail" name="email" value="${user ? user.email : ''}" required>
+                    <label for="modalUserEmail">Email</label>
+                    <input type="email" id="modalUserEmail" name="email" value="${user ? user.email : ''}" placeholder="Digite o email" required>
                 </div>
                 <div class="form-group">
-                    <label for="userPassword">Senha</label>
-                    <input type="password" id="userPassword" name="password" ${isEditing ? '' : 'required'}>
-                    ${isEditing ? '<small>Deixe em branco para não alterar</small>' : ''}
+                    <label for="modalUserPassword">Senha</label>
+                    <input type="password" id="modalUserPassword" name="password" placeholder="${isEditing ? 'Deixe em branco para não alterar' : 'Digite a senha'}" ${isEditing ? '' : 'required'}>
+                    ${isEditing ? '<small class="form-hint">Deixe em branco para não alterar</small>' : ''}
                 </div>
                 <div class="form-group">
-                    <label for="userType">Tipo</label>
-                    <select id="userType" name="user_type">
+                    <label for="modalUserType">Tipo</label>
+                    <select id="modalUserType" name="user_type">
                         <option value="usuario" ${user && user.user_type === 'usuario' ? 'selected' : ''}>Usuário</option>
                         <option value="admin" ${user && user.user_type === 'admin' ? 'selected' : ''}>Admin</option>
                     </select>
                 </div>
-                <div class="form-actions">
-                    <button type="submit" class="btn-primary">${isEditing ? 'Salvar Alterações' : 'Adicionar Usuário'}</button>
-                    ${isEditing ? '<button type="button" class="btn-secondary" onclick="renderUserForm()">Cancelar</button>' : ''}
+                <div class="modal-form-actions">
+                    <button type="submit" class="btn-primary">
+                        <i class="fas fa-save"></i>
+                        ${isEditing ? 'Salvar Alterações' : 'Adicionar Usuário'}
+                    </button>
+                    ${isEditing ? '<button type="button" class="btn-secondary" onclick="renderModalUserForm()"><i class="fas fa-times"></i> Cancelar</button>' : ''}
                 </div>
             </form>
         </div>
     `;
 
-    document.getElementById('userForm').onsubmit = saveUser;
+    document.getElementById('modalUserForm').onsubmit = saveUser;
 }
 
 async function saveUser(event) {
@@ -285,101 +311,166 @@ async function saveUser(event) {
     const form = event.target;
     const formData = new FormData(form);
     const id = formData.get('id');
+    const username = formData.get('username').trim();
+    const email = formData.get('email').trim();
+    const password = formData.get('password');
+    
+    // Validação
+    if (!username) {
+        showToast('Nome de usuário é obrigatório', 'error');
+        return;
+    }
+    
+    if (!email) {
+        showToast('Email é obrigatório', 'error');
+        return;
+    }
+    
     const data = {
-        username: formData.get('username'),
-        email: formData.get('email'),
-        password: formData.get('password'),
+        username: username,
+        email: email,
+        password: password,
         user_type: formData.get('user_type')
     };
 
-    if (id) { // Edit
-        if (!data.password) delete data.password; // Não envia senha se estiver vazia
-        await apiRequest(`/usuarios/${id}`, { method: 'PUT', body: JSON.stringify(data) });
-    } else { // Create
-        await apiRequest('/usuarios', { method: 'POST', body: JSON.stringify(data) });
+    try {
+        if (id) { // Edit
+            if (!data.password) delete data.password; // Não envia senha se estiver vazia
+            await apiRequest(`/usuarios/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+            showToast('Usuário atualizado com sucesso!', 'success');
+        } else { // Create
+            await apiRequest('/usuarios', { method: 'POST', body: JSON.stringify(data) });
+            showToast('Usuário criado com sucesso!', 'success');
+        }
+        
+        // Limpar formulário e recarregar lista
+        form.reset();
+        renderModalUserForm();
+        
+        // Recarregar lista de usuários
+        const users = await apiRequest('/usuarios');
+        if (users) {
+            renderModalUserList(users);
+        }
+    } catch (error) {
+        showToast('Erro ao salvar usuário', 'error');
     }
-
-    showUserManagement(); // Recarrega a lista
 }
 
 async function deleteUser(id) {
     if (confirm('Tem certeza que deseja excluir este usuário?')) {
-        await apiRequest(`/usuarios/${id}`, { method: 'DELETE' });
-        showUserManagement(); // Recarrega a lista
+        try {
+            await apiRequest(`/usuarios/${id}`, { method: 'DELETE' });
+            showToast('Usuário excluído com sucesso!', 'success');
+            
+            // Recarregar lista de usuários
+            const users = await apiRequest('/usuarios');
+            if (users) {
+                renderModalUserList(users);
+            }
+        } catch (error) {
+            showToast('Erro ao excluir usuário', 'error');
+        }
     }
 }
 
 async function showSectorManagement() {
-    const adminContent = document.getElementById('adminContent');
-    adminContent.innerHTML = '<h3>Carregando...</h3>';
-
+    showLoading();
+    
     const sectors = await apiRequest('/setores');
-
+    
     if (sectors) {
-        adminContent.innerHTML = `
-            <h3>Gerenciamento de Setores</h3>
-            <div id="sectorFormContainer"></div>
-            <div id="sectorListContainer"></div>
-        `;
-        renderSectorList(sectors);
-        renderSectorForm();
+        const modal = document.getElementById('sectorModal');
+        modal.classList.remove('hidden');
+        
+        renderModalSectorList(sectors);
+        renderModalSectorForm();
     }
+    
+    hideLoading();
 }
 
-function renderSectorList(sectors) {
-    const sectorListContainer = document.getElementById('sectorListContainer');
+function closeSectorModal() {
+    const modal = document.getElementById('sectorModal');
+    modal.classList.add('hidden');
+    
+    // Limpar conteúdo do modal
+    document.getElementById('modalSectorFormContainer').innerHTML = '';
+    document.getElementById('modalSectorListContainer').innerHTML = '';
+}
+
+function renderModalSectorList(sectors) {
+    const sectorListContainer = document.getElementById('modalSectorListContainer');
+    
+    if (sectors.length === 0) {
+        sectorListContainer.innerHTML = `
+            <div class="modal-empty-state">
+                <i class="fas fa-building"></i>
+                <p>Nenhum setor cadastrado</p>
+            </div>
+        `;
+        return;
+    }
+    
     sectorListContainer.innerHTML = `
-        <h4>Setores Existentes</h4>
-        <table class="management-table">
-            <thead>
-                <tr>
-                    <th>Nome</th>
-                    <th>Descrição</th>
-                    <th>Ações</th>
-                </tr>
-            </thead>
-            <tbody>
-                ${sectors.map(sector => `
-                    <tr>
-                        <td>${sector.nome}</td>
-                        <td>${sector.descricao || 'N/A'}</td>
-                        <td>
-                            <button class="btn-edit" onclick="renderSectorForm(${JSON.stringify(sector).replace(/"/g, "'")})">Editar</button>
-                            <button class="btn-delete" onclick="deleteSector(${sector.id})">Excluir</button>
-                        </td>
-                    </tr>
-                `).join('')}
-            </tbody>
-        </table>
+        <div class="modal-section">
+            <h4><i class="fas fa-building"></i> Setores Existentes</h4>
+            <div class="modal-table-container">
+                <table class="modal-table">
+                    <thead>
+                        <tr>
+                            <th>Nome</th>
+                            <th>Descrição</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${sectors.map(sector => `
+                            <tr>
+                                <td>${sector.nome}</td>
+                                <td>${sector.descricao || '<span class="text-muted">Sem descrição</span>'}</td>
+                                <td>
+                                    <button class="btn-edit" onclick="renderModalSectorForm(${JSON.stringify(sector).replace(/"/g, "'")})"><i class="fas fa-edit"></i></button>
+                                    <button class="btn-delete" onclick="deleteSector(${sector.id})" title="Excluir setor"><i class="fas fa-trash"></i></button>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        </div>
     `;
 }
 
-function renderSectorForm(sector = null) {
-    const sectorFormContainer = document.getElementById('sectorFormContainer');
+function renderModalSectorForm(sector = null) {
+    const sectorFormContainer = document.getElementById('modalSectorFormContainer');
     const isEditing = sector !== null;
 
     sectorFormContainer.innerHTML = `
-        <div class="form-card">
-            <h4>${isEditing ? 'Editar Setor' : 'Adicionar Novo Setor'}</h4>
-            <form id="sectorForm">
+        <div class="modal-section">
+            <h4><i class="fas fa-plus-circle"></i> ${isEditing ? 'Editar Setor' : 'Adicionar Novo Setor'}</h4>
+            <form id="modalSectorForm" class="modal-form">
                 <input type="hidden" name="id" value="${sector ? sector.id : ''}">
                 <div class="form-group">
-                    <label for="sectorName">Nome</label>
-                    <input type="text" id="sectorName" name="nome" value="${sector ? sector.nome : ''}" required>
+                    <label for="modalSectorName">Nome</label>
+                    <input type="text" id="modalSectorName" name="nome" value="${sector ? sector.nome : ''}" placeholder="Digite o nome do setor" required>
                 </div>
                 <div class="form-group">
-                    <label for="sectorDescription">Descrição</label>
-                    <input type="text" id="sectorDescription" name="descricao" value="${sector ? sector.descricao : ''}">
+                    <label for="modalSectorDescription">Descrição</label>
+                    <input type="text" id="modalSectorDescription" name="descricao" value="${sector ? sector.descricao : ''}" placeholder="Digite a descrição do setor (opcional)">
                 </div>
-                <div class="form-actions">
-                    <button type="submit" class="btn-primary">${isEditing ? 'Salvar Alterações' : 'Adicionar Setor'}</button>
-                    ${isEditing ? '<button type="button" class="btn-secondary" onclick="renderSectorForm()">Cancelar</button>' : ''}
+                <div class="modal-form-actions">
+                    <button type="submit" class="btn-primary">
+                        <i class="fas fa-save"></i>
+                        ${isEditing ? 'Salvar Alterações' : 'Adicionar Setor'}
+                    </button>
+                    ${isEditing ? '<button type="button" class="btn-secondary" onclick="renderModalSectorForm()"><i class="fas fa-times"></i> Cancelar</button>' : ''}
                 </div>
             </form>
         </div>
     `;
 
-    document.getElementById('sectorForm').onsubmit = saveSector;
+    document.getElementById('modalSectorForm').onsubmit = saveSector;
 }
 
 async function saveSector(event) {
@@ -387,110 +478,169 @@ async function saveSector(event) {
     const form = event.target;
     const formData = new FormData(form);
     const id = formData.get('id');
+    const nome = formData.get('nome').trim();
+    const descricao = formData.get('descricao').trim();
+    
+    // Validação
+    if (!nome) {
+        showToast('Nome do setor é obrigatório', 'error');
+        return;
+    }
+    
     const data = {
-        nome: formData.get('nome'),
-        descricao: formData.get('descricao')
+        nome: nome,
+        descricao: descricao
     };
 
-    if (id) { // Edit
-        await apiRequest(`/setores/${id}`, { method: 'PUT', body: JSON.stringify(data) });
-    } else { // Create
-        await apiRequest('/setores', { method: 'POST', body: JSON.stringify(data) });
+    try {
+        if (id) { // Edit
+            await apiRequest(`/setores/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+            showToast('Setor atualizado com sucesso!', 'success');
+        } else { // Create
+            await apiRequest('/setores', { method: 'POST', body: JSON.stringify(data) });
+            showToast('Setor criado com sucesso!', 'success');
+        }
+        
+        // Limpar formulário e recarregar lista
+        form.reset();
+        renderModalSectorForm();
+        
+        // Recarregar lista de setores
+        const sectors = await apiRequest('/setores');
+        if (sectors) {
+            renderModalSectorList(sectors);
+        }
+    } catch (error) {
+        showToast('Erro ao salvar setor', 'error');
     }
-
-    showSectorManagement(); // Recarrega a lista
 }
 
 async function deleteSector(id) {
     if (confirm('Tem certeza que deseja excluir este setor? A exclusão removerá funcionários e feedbacks associados.')) {
-        await apiRequest(`/setores/${id}`, { method: 'DELETE' });
-        showSectorManagement(); // Recarrega a lista
+        try {
+            await apiRequest(`/setores/${id}`, { method: 'DELETE' });
+            showToast('Setor excluído com sucesso!', 'success');
+            
+            // Recarregar lista de setores
+            const sectors = await apiRequest('/setores');
+            if (sectors) {
+                renderModalSectorList(sectors);
+            }
+        } catch (error) {
+            showToast('Erro ao excluir setor', 'error');
+        }
     }
 }
 
 async function showEmployeeManagement() {
-    const adminContent = document.getElementById('adminContent');
-    adminContent.innerHTML = '<h3>Carregando...</h3>';
-
+    showLoading();
+    
     const [employees, sectors] = await Promise.all([
         apiRequest('/funcionarios'),
         apiRequest('/setores')
     ]);
 
     if (employees && sectors) {
-        adminContent.innerHTML = `
-            <h3>Gerenciamento de Funcionários</h3>
-            <div id="employeeFormContainer"></div>
-            <div id="employeeListContainer"></div>
-        `;
-        renderEmployeeList(employees, sectors);
-        renderEmployeeForm(null, sectors);
+        const modal = document.getElementById('employeeModal');
+        modal.classList.remove('hidden');
+        
+        renderModalEmployeeList(employees, sectors);
+        renderModalEmployeeForm(null, sectors);
     }
+    
+    hideLoading();
 }
 
-function renderEmployeeList(employees, sectors) {
-    const employeeListContainer = document.getElementById('employeeListContainer');
+function closeEmployeeModal() {
+    const modal = document.getElementById('employeeModal');
+    modal.classList.add('hidden');
+    
+    // Limpar conteúdo do modal
+    document.getElementById('modalEmployeeFormContainer').innerHTML = '';
+    document.getElementById('modalEmployeeList').innerHTML = '';
+}
+
+function renderModalEmployeeList(employees, sectors) {
+    const employeeListContainer = document.getElementById('modalEmployeeList');
+    
+    if (employees.length === 0) {
+        employeeListContainer.innerHTML = `
+            <div class="modal-empty-state">
+                <i class="fas fa-user-tie"></i>
+                <p>Nenhum funcionário cadastrado</p>
+            </div>
+        `;
+        return;
+    }
+    
     employeeListContainer.innerHTML = `
-        <h4>Funcionários Existentes</h4>
-        <table class="management-table">
-            <thead>
-                <tr>
-                    <th>Nome</th>
-                    <th>Cargo</th>
-                    <th>Setor</th>
-                    <th>Ações</th>
-                </tr>
-            </thead>
-            <tbody>
-                ${employees.map(employee => `
-                    <tr>
-                        <td>${employee.nome}</td>
-                        <td>${employee.cargo || 'N/A'}</td>
-                        <td>${sectors.find(s => s.id === employee.setor_id)?.nome || 'N/A'}</td>
-                        <td>
-                            <button class="btn-edit" onclick="renderEmployeeForm(${JSON.stringify(employee).replace(/"/g, "'")}, ${JSON.stringify(sectors).replace(/"/g, "'")})">Editar</button>
-                            <button class="btn-delete" onclick="deleteEmployee(${employee.id})">Excluir</button>
-                        </td>
-                    </tr>
-                `).join('')}
-            </tbody>
-        </table>
+        <div class="modal-section">
+            <h4><i class="fas fa-user-tie"></i> Funcionários Existentes</h4>
+            <div class="modal-table-container">
+                <table class="modal-table">
+                    <thead>
+                        <tr>
+                            <th>Nome</th>
+                            <th>Cargo</th>
+                            <th>Setor</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${employees.map(employee => `
+                            <tr>
+                                <td>${employee.nome}</td>
+                                <td>${employee.cargo || '<span class="text-muted">Sem cargo</span>'}</td>
+                                <td><span class="sector-badge">${sectors.find(s => s.id === employee.setor_id)?.nome || 'N/A'}</span></td>
+                                <td>
+                                    <button class="btn-edit" onclick="renderModalEmployeeForm(${JSON.stringify(employee).replace(/"/g, "'")}, ${JSON.stringify(sectors).replace(/"/g, "'")})"><i class="fas fa-edit"></i></button>
+                                    <button class="btn-delete" onclick="deleteEmployee(${employee.id})" title="Excluir funcionário"><i class="fas fa-trash"></i></button>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        </div>
     `;
 }
 
-function renderEmployeeForm(employee = null, sectors) {
-    const employeeFormContainer = document.getElementById('employeeFormContainer');
+function renderModalEmployeeForm(employee = null, sectors) {
+    const employeeFormContainer = document.getElementById('modalEmployeeFormContainer');
     const isEditing = employee !== null;
 
     employeeFormContainer.innerHTML = `
-        <div class="form-card">
-            <h4>${isEditing ? 'Editar Funcionário' : 'Adicionar Novo Funcionário'}</h4>
-            <form id="employeeForm">
+        <div class="modal-section">
+            <h4><i class="fas fa-user-plus"></i> ${isEditing ? 'Editar Funcionário' : 'Adicionar Novo Funcionário'}</h4>
+            <form id="modalEmployeeForm" class="modal-form">
                 <input type="hidden" name="id" value="${employee ? employee.id : ''}">
                 <div class="form-group">
-                    <label for="employeeName">Nome</label>
-                    <input type="text" id="employeeName" name="nome" value="${employee ? employee.nome : ''}" required>
+                    <label for="modalEmployeeName">Nome</label>
+                    <input type="text" id="modalEmployeeName" name="nome" value="${employee ? employee.nome : ''}" placeholder="Digite o nome do funcionário" required>
                 </div>
                 <div class="form-group">
-                    <label for="employeeRole">Cargo</label>
-                    <input type="text" id="employeeRole" name="cargo" value="${employee ? employee.cargo : ''}">
+                    <label for="modalEmployeeRole">Cargo</label>
+                    <input type="text" id="modalEmployeeRole" name="cargo" value="${employee ? employee.cargo : ''}" placeholder="Digite o cargo (opcional)">
                 </div>
                 <div class="form-group">
-                    <label for="employeeSector">Setor</label>
-                    <select id="employeeSector" name="setor_id" required>
+                    <label for="modalEmployeeSector">Setor</label>
+                    <select id="modalEmployeeSector" name="setor_id" required>
                         <option value="">Selecione um setor</option>
                         ${sectors.map(sector => `<option value="${sector.id}" ${employee && employee.setor_id === sector.id ? 'selected' : ''}>${sector.nome}</option>`).join('')}
                     </select>
                 </div>
-                <div class="form-actions">
-                    <button type="submit" class="btn-primary">${isEditing ? 'Salvar Alterações' : 'Adicionar Funcionário'}</button>
-                    ${isEditing ? `<button type="button" class="btn-secondary" onclick="renderEmployeeForm(null, ${JSON.stringify(sectors).replace(/"/g, "'")})">Cancelar</button>` : ''}
+                <div class="modal-form-actions">
+                    <button type="submit" class="btn-primary">
+                        <i class="fas fa-save"></i>
+                        ${isEditing ? 'Salvar Alterações' : 'Adicionar Funcionário'}
+                    </button>
+                    ${isEditing ? `<button type="button" class="btn-secondary" onclick="renderModalEmployeeForm(null, ${JSON.stringify(sectors).replace(/"/g, "'")})"><i class="fas fa-times"></i> Cancelar</button>` : ''}
                 </div>
             </form>
         </div>
     `;
 
-    document.getElementById('employeeForm').onsubmit = saveEmployee;
+    document.getElementById('modalEmployeeForm').onsubmit = saveEmployee;
 }
 
 async function saveEmployee(event) {
@@ -498,50 +648,165 @@ async function saveEmployee(event) {
     const form = event.target;
     const formData = new FormData(form);
     const id = formData.get('id');
+    const nome = formData.get('nome').trim();
+    const cargo = formData.get('cargo').trim();
+    const setor_id = formData.get('setor_id');
+    
+    // Validação
+    if (!nome) {
+        showToast('Nome do funcionário é obrigatório', 'error');
+        return;
+    }
+    
+    if (!setor_id) {
+        showToast('Setor é obrigatório', 'error');
+        return;
+    }
+    
     const data = {
-        nome: formData.get('nome'),
-        cargo: formData.get('cargo'),
-        setor_id: parseInt(formData.get('setor_id'))
+        nome: nome,
+        cargo: cargo || null,
+        setor_id: parseInt(setor_id)
     };
 
-    if (id) { // Edit
-        await apiRequest(`/funcionarios/${id}`, { method: 'PUT', body: JSON.stringify(data) });
-    } else { // Create
-        await apiRequest('/funcionarios', { method: 'POST', body: JSON.stringify(data) });
+    try {
+        if (id) { // Edit
+            await apiRequest(`/funcionarios/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+            showToast('Funcionário atualizado com sucesso!', 'success');
+        } else { // Create
+            await apiRequest('/funcionarios', { method: 'POST', body: JSON.stringify(data) });
+            showToast('Funcionário criado com sucesso!', 'success');
+        }
+        
+        // Limpar formulário e recarregar lista
+        form.reset();
+        
+        // Recarregar dados
+        const [employees, sectors] = await Promise.all([
+            apiRequest('/funcionarios'),
+            apiRequest('/setores')
+        ]);
+        
+        if (employees && sectors) {
+            renderModalEmployeeList(employees, sectors);
+            renderModalEmployeeForm(null, sectors);
+        }
+    } catch (error) {
+        showToast('Erro ao salvar funcionário', 'error');
     }
-
-    showEmployeeManagement(); // Recarrega a lista
 }
 
 async function deleteEmployee(id) {
     if (confirm('Tem certeza que deseja excluir este funcionário?')) {
-        await apiRequest(`/funcionarios/${id}`, { method: 'DELETE' });
-        showEmployeeManagement(); // Recarrega a lista
+        try {
+            await apiRequest(`/funcionarios/${id}`, { method: 'DELETE' });
+            showToast('Funcionário excluído com sucesso!', 'success');
+            
+            // Recarregar dados
+            const [employees, sectors] = await Promise.all([
+                apiRequest('/funcionarios'),
+                apiRequest('/setores')
+            ]);
+            
+            if (employees && sectors) {
+                renderModalEmployeeList(employees, sectors);
+            }
+        } catch (error) {
+            showToast('Erro ao excluir funcionário', 'error');
+        }
     }
 }
 
 async function showAttributeManagement() {
-    const adminContent = document.getElementById('adminContent');
-    adminContent.innerHTML = '<h3>Carregando...</h3>';
-
+    const modal = document.getElementById('attributeModal');
+    const sectorSelect = document.getElementById('attributeSectorSelect');
+    
+    // Limpar conteúdo anterior
+    sectorSelect.innerHTML = '<option value="">-- Selecione --</option>';
+    document.getElementById('attributeListContainer').innerHTML = '';
+    document.getElementById('attributeFormContainer').innerHTML = '';
+    
+    // Carregar setores
     const sectors = await apiRequest('/setores');
-
+    
     if (sectors) {
-        adminContent.innerHTML = `
-            <h3>Gerenciamento de Atributos por Setor</h3>
-            <div class="form-group">
-                <label for="attributeSectorSelect">Selecione um Setor</label>
-                <select id="attributeSectorSelect" onchange="renderAttributeList(this.value)">
-                    <option value="">-- Selecione --</option>
-                    ${sectors.map(sector => `<option value="${sector.id}">${sector.nome}</option>`).join('')}
-                </select>
-            </div>
-            <div id="attributeListContainer"></div>
-            <div id="attributeFormContainer"></div>
-        `;
+        // Preencher select com setores
+        sectors.forEach(sector => {
+            const option = document.createElement('option');
+            option.value = sector.id;
+            option.textContent = sector.nome;
+            sectorSelect.appendChild(option);
+        });
+        
         window.sectorsForAttributes = sectors; // Store for later use
+        
+        // Mostrar modal
+        modal.classList.remove('hidden');
     }
 }
+
+function closeAttributeModal() {
+    const modal = document.getElementById('attributeModal');
+    modal.classList.add('hidden');
+    
+    // Limpar conteúdo
+    document.getElementById('attributeSectorSelect').value = '';
+    document.getElementById('attributeListContainer').innerHTML = '';
+    document.getElementById('attributeFormContainer').innerHTML = '';
+}
+
+// Adicionar listener para fechar modal com ESC
+document.addEventListener('keydown', function(event) {
+    if (event.key === 'Escape') {
+        const attributeModal = document.getElementById('attributeModal');
+        const userModal = document.getElementById('userModal');
+        const sectorModal = document.getElementById('sectorModal');
+        const employeeModal = document.getElementById('employeeModal');
+        
+        if (attributeModal && !attributeModal.classList.contains('hidden')) {
+            closeAttributeModal();
+        } else if (userModal && !userModal.classList.contains('hidden')) {
+            closeUserModal();
+        } else if (sectorModal && !sectorModal.classList.contains('hidden')) {
+            closeSectorModal();
+        } else if (employeeModal && !employeeModal.classList.contains('hidden')) {
+            closeEmployeeModal();
+        }
+    }
+});
+
+// Prevenir fechamento do modal ao clicar no conteúdo e adicionar listeners para fechar ao clicar fora
+document.addEventListener('DOMContentLoaded', function() {
+    // Prevenir fechamento ao clicar no conteúdo dos modais
+    const modalContents = document.querySelectorAll('.modal-content');
+    modalContents.forEach(modalContent => {
+        modalContent.addEventListener('click', function(event) {
+            event.stopPropagation();
+        });
+    });
+    
+    // Fechar modais ao clicar fora
+    const attributeModal = document.getElementById('attributeModal');
+    const userModal = document.getElementById('userModal');
+    const sectorModal = document.getElementById('sectorModal');
+    const employeeModal = document.getElementById('employeeModal');
+    
+    if (attributeModal) {
+        attributeModal.addEventListener('click', closeAttributeModal);
+    }
+    
+    if (userModal) {
+        userModal.addEventListener('click', closeUserModal);
+    }
+    
+    if (sectorModal) {
+        sectorModal.addEventListener('click', closeSectorModal);
+    }
+    
+    if (employeeModal) {
+        employeeModal.addEventListener('click', closeEmployeeModal);
+    }
+});
 
 async function renderAttributeList(sectorId) {
     if (!sectorId) {
@@ -554,17 +819,29 @@ async function renderAttributeList(sectorId) {
     const attributes = attributesData.atributos || [];
 
     const attributeListContainer = document.getElementById('attributeListContainer');
-    attributeListContainer.innerHTML = `
-        <h4>Atributos do Setor</h4>
-        <ul>
-            ${attributes.map(attr => `
-                <li>
-                    ${attr}
-                    <button onclick="deleteAttribute('${sectorId}', '${attr}')">Excluir</button>
-                </li>
-            `).join('')}
-        </ul>
-    `;
+    
+    if (attributes.length > 0) {
+        attributeListContainer.innerHTML = `
+            <h4><i class="fas fa-list"></i> Atributos do Setor</h4>
+            <ul>
+                ${attributes.map(attr => `
+                    <li>
+                        <span><i class="fas fa-tag"></i> ${attr}</span>
+                        <button onclick="deleteAttribute('${sectorId}', '${attr}')" title="Excluir atributo">
+                            <i class="fas fa-trash"></i> Excluir
+                        </button>
+                    </li>
+                `).join('')}
+            </ul>
+        `;
+    } else {
+        attributeListContainer.innerHTML = `
+            <h4><i class="fas fa-list"></i> Atributos do Setor</h4>
+            <p style="color: #666; font-style: italic; text-align: center; padding: 20px;">
+                <i class="fas fa-info-circle"></i> Nenhum atributo cadastrado para este setor.
+            </p>
+        `;
+    }
 
     renderAttributeForm(sectorId);
 }
@@ -577,9 +854,12 @@ function renderAttributeForm(sectorId) {
             <input type="hidden" name="setor_id" value="${sectorId}">
             <div class="form-group">
                 <label for="attributeName">Nome do Atributo</label>
-                <input type="text" id="attributeName" name="atributo" required>
+                <input type="text" id="attributeName" name="atributo" required placeholder="Digite o nome do atributo">
             </div>
-            <button type="submit">Adicionar Atributo</button>
+            <button type="submit">
+                <i class="fas fa-plus"></i>
+                Adicionar Atributo
+            </button>
         </form>
     `;
 
@@ -593,21 +873,34 @@ async function saveAttribute(event) {
     const sectorId = formData.get('setor_id');
     const attributeName = formData.get('atributo');
 
-    await apiRequest(`/setores/${sectorId}/atributos`, {
+    if (!attributeName.trim()) {
+        showToast('Por favor, digite um nome para o atributo', 'error');
+        return;
+    }
+
+    const result = await apiRequest(`/setores/${sectorId}/atributos`, {
         method: 'POST',
-        body: JSON.stringify({ atributo: attributeName })
+        body: JSON.stringify({ atributo: attributeName.trim() })
     });
 
-    renderAttributeList(sectorId); // Recarrega a lista
+    if (result) {
+        showToast('Atributo adicionado com sucesso!', 'success');
+        form.reset(); // Limpar formulário
+        renderAttributeList(sectorId); // Recarrega a lista
+    }
 }
 
 async function deleteAttribute(sectorId, attributeName) {
     if (confirm(`Tem certeza que deseja excluir o atributo '${attributeName}'?`)) {
-        await apiRequest(`/setores/${sectorId}/atributos`, {
+        const result = await apiRequest(`/setores/${sectorId}/atributos`, {
             method: 'DELETE',
             body: JSON.stringify({ atributo: attributeName })
         });
-        renderAttributeList(sectorId); // Recarrega a lista
+        
+        if (result) {
+            showToast('Atributo excluído com sucesso!', 'success');
+            renderAttributeList(sectorId); // Recarrega a lista
+        }
     }
 }
 
