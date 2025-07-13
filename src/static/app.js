@@ -1406,6 +1406,30 @@ function renderHistory(feedbacks) {
             background-color: #fee2e2;
             color: #ef4444;
         }
+        
+        .status-badge.experiencia {
+            background-color: #ffeccc;
+            color: #f59e0b;
+        }
+
+        .card-body p {
+            margin-bottom: 0.5rem; /* Add some space below paragraphs */
+        }
+
+        .card-body .content {
+            padding-left: 1rem; /* Indent content for better readability */
+            border-left: 2px solid #e2e8f0;
+        }
+
+        .card-body .content ul {
+            margin-top: 0.5rem;
+            margin-bottom: 0;
+            padding-left: 1.5rem;
+        }
+
+        .card-body .content li {
+            margin-bottom: 0.2rem;
+        }
     `;
     document.head.appendChild(style);
 
@@ -1428,6 +1452,31 @@ function renderHistory(feedbacks) {
             content = feedback.descricao || 'Sem descrição';
         }
 
+        let iconClass = '';
+        let typeDisplayName = feedback.tipo.replace('_', ' ');
+
+        switch (feedback.tipo) {
+            case 'diario':
+                iconClass = 'fa-circle-info';
+                typeDisplayName = 'Informativo';
+                break;
+            case 'diario_experiencia':
+                iconClass = 'fa-lightbulb';
+                typeDisplayName = 'Sugestão';
+                break;
+            case 'final_experiencia':
+                iconClass = 'fa-triangle-exclamation';
+                typeDisplayName = 'Problema';
+                break;
+            case 'experiencia':
+                iconClass = 'fa-star'; // Or another appropriate icon
+                typeDisplayName = 'Experiência';
+                break;
+            default:
+                iconClass = 'fa-comment';
+                break;
+        }
+
         return `
             <article class="feedback-card">
                 <header class="card-header">
@@ -1436,9 +1485,8 @@ function renderHistory(feedbacks) {
                         <p class="date"><i class="fa-solid fa-calendar-days"></i> ${date}</p>
                     </div>
                     <div class="status-badge ${feedback.tipo}">
-                        <i class="fa-solid ${feedback.tipo === 'diario' ? 'fa-circle-info' : 
-                           feedback.tipo === 'diario_experiencia' ? 'fa-lightbulb' : 'fa-triangle-exclamation'}"></i> 
-                        ${feedback.tipo.replace('_', ' ')}
+                        <i class="fa-solid ${iconClass}"></i> 
+                        ${typeDisplayName}
                     </div>
                 </header>
                 <div class="card-body">
