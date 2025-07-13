@@ -1334,8 +1334,84 @@ function renderHistory(feedbacks) {
         return;
     }
 
+    // Adicionando estilos CSS dinamicamente
+    const style = document.createElement('style');
+    style.textContent = `
+        .feedback-list {
+            display: grid;
+            gap: 1.5rem;
+        }
+        
+        .feedback-card {
+            background-color: #ffffff;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            border: 1px solid #e2e8f0;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .feedback-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+        }
+        
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+        
+        .employee-info h2 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #1a202c;
+            margin: 0 0 0.25rem 0;
+        }
+        
+        .employee-info .date {
+            font-size: 0.875rem;
+            color: #718096;
+            margin: 0;
+        }
+        
+        .status-badge {
+            padding: 0.4rem 0.8rem;
+            border-radius: 15px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            flex-shrink: 0;
+            margin-top: 4px;
+        }
+        
+        .status-badge.diario {
+            background-color: #dbeafe;
+            color: #3b82f6;
+        }
+        
+        .status-badge.diario_experiencia {
+            background-color: #e9d5ff;
+            color: #8b5cf6;
+        }
+        
+        .status-badge.final_experiencia {
+            background-color: #fee2e2;
+            color: #ef4444;
+        }
+    `;
+    document.head.appendChild(style);
+
     historyList.innerHTML = feedbacks.map(feedback => {
         const date = new Date(feedback.data_feedback).toLocaleString('pt-BR');
+        const isAdmin = app.user && app.user.user_type === 'admin';
 
         let content = '';
         if ((feedback.tipo === 'diario' || feedback.tipo === 'diario_experiencia') && feedback.avaliacoes) {
@@ -1345,28 +1421,35 @@ function renderHistory(feedbacks) {
         } else if (feedback.tipo === 'final_experiencia') {
             content = `<p><strong>Relatório:</strong> ${feedback.detalhes || 'Não informado'}</p>` +
                       `<p><strong>Recomendação:</strong> ${feedback.recomenda_efetivacao ? 'Efetivar' : 'Não efetivar'}</p>`;
-        } else if (feedback.tipo === 'experiencia') { // Manter compatibilidade com feedbacks antigos
+        } else if (feedback.tipo === 'experiencia') {
              content = `<p><strong>Detalhes:</strong> ${feedback.detalhes || 'Não informado'}</p>` +
                        `<p><strong>Recomendação:</strong> ${feedback.recomenda_efetivacao ? 'Efetivar' : 'Não efetivar'}</p>`;
         } else {
             content = feedback.descricao || 'Sem descrição';
         }
 
-        const isAdmin = app.user && app.user.user_type === 'admin';
-
         return `
-            <div class="history-item ${feedback.tipo}">
-                <div class="history-header">
-                    <span class="history-type ${feedback.tipo}">${feedback.tipo}</span>
-                    <span class="history-date">${date}</span>
+            <article class="feedback-card">
+                <header class="card-header">
+                    <div class="employee-info">
+                        <h2><i class="fa-solid fa-user-tie"></i> ${feedback.funcionario_nome}</h2>
+                        <p class="date"><i class="fa-solid fa-calendar-days"></i> ${date}</p>
+                    </div>
+                    <div class="status-badge ${feedback.tipo}">
+                        <i class="fa-solid ${feedback.tipo === 'diario' ? 'fa-circle-info' : 
+                           feedback.tipo === 'diario_experiencia' ? 'fa-lightbulb' : 'fa-triangle-exclamation'}"></i> 
+                        ${feedback.tipo.replace('_', ' ')}
+                    </div>
+                </header>
+                <div class="card-body">
+                    ${isAdmin ? `<p><strong><i class="fa-solid fa-user"></i> Usuário:</strong> ${feedback.autor_username}</p>` : ''}
+                    <p><strong><i class="fa-solid fa-building"></i> Setor:</strong> ${feedback.setor_nome}</p>
+                    <div class="content">
+                        <p><strong><i class="fa-solid fa-comment"></i> Conteúdo:</strong></p>
+                        ${content}
+                    </div>
                 </div>
-                <div class="history-details">
-                    ${isAdmin ? `<p><strong>Usuário:</strong> ${feedback.autor_username}</p>` : ''}
-                    <p><strong>Funcionário:</strong> ${feedback.funcionario_nome}</p>
-                    <p><strong>Setor:</strong> ${feedback.setor_nome}</p>
-                    <p><strong>Conteúdo:</strong> ${content}</p>
-                </div>
-            </div>
+            </article>
         `;
     }).join('');
 }
