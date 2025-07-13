@@ -6,6 +6,7 @@
     <title>FeedFort - Funcionários</title>
     <link rel="stylesheet" href="styles.css">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
     <!-- Loading Spinner -->
@@ -113,6 +114,47 @@
                         <h3>Ocorrência Negativa</h3>
                         <p>Registrar algo que precisa melhorar</p>
                     </div>
+                    <div class="type-card" onclick="selectFeedbackType('experiencia')">
+                        <i class="fas fa-user-clock"></i>
+                        <h3>Experiência</h3>
+                        <p>Feedback sobre o período de experiência</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Experience Subtype Selection Screen -->
+            <div id="experienceSubtypeScreen" class="screen">
+                <div class="screen-header">
+                    <button class="btn-back" onclick="showScreen('feedbackTypeScreen')">
+                        <i class="fas fa-arrow-left"></i>
+                    </button>
+                    <h2>Tipo de Feedback de Experiência</h2>
+                </div>
+                <div class="type-cards">
+
+                                        <div class="type-card" onclick="showDailyEvolutionChart()">
+                        <i class="fas fa-chart-line"></i>
+                        <h3>Evolução Diária</h3>
+                        <p>Gráfico de evolução das notas diárias</p>
+                    </div>
+                    <div class="type-card" onclick="selectExperienceSubtype('final_experiencia')">
+                        <i class="fas fa-flag-checkered"></i>
+                        <h3>Final</h3>
+                        <p>Relatório final do período de experiência</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Daily Evolution Chart Screen -->
+            <div id="dailyEvolutionChartScreen" class="screen">
+                <div class="screen-header">
+                    <button class="btn-back" onclick="showScreen('experienceSubtypeScreen')">
+                        <i class="fas fa-arrow-left"></i>
+                    </button>
+                    <h2>Evolução da Média Diária de Notas</h2>
+                </div>
+                <div class="chart-container">
+                    <canvas id="dailyEvolutionChart"></canvas>
                 </div>
             </div>
 
@@ -176,6 +218,7 @@
                         <option value="diario">Diário</option>
                         <option value="positiva">Positiva</option>
                         <option value="negativa">Negativa</option>
+                        <option value="experiencia">Experiência</option>
                     </select>
                     <button class="btn-secondary" onclick="loadHistory()">
                         <i class="fas fa-search"></i>
@@ -317,7 +360,7 @@
     </div>
 
     <!-- Scripts -->
-    <script src="app.js"></script>
+    <script src="app.js?v=1.2"></script>
 </body>
 </html>
 

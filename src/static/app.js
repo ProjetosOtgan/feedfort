@@ -1,3 +1,15 @@
+document.addEventListener('DOMContentLoaded', () => {
+    const loginForm = document.getElementById('loginForm');
+    if (loginForm) {
+        loginForm.addEventListener('submit', (event) => {
+            event.preventDefault();
+            const username = event.target.username.value;
+            const password = event.target.password.value;
+            login(username, password);
+        });
+    }
+});
+
 // Estado global da aplicação
 const app = {
     token: localStorage.getItem('token'),
@@ -88,6 +100,8 @@ async function login(username, password) {
         });
         
         const data = await response.json();
+        console.log('Login response:', response);
+        console.log('Login data:', data);
         
         if (response.ok) {
             app.token = data.token;
@@ -104,6 +118,7 @@ async function login(username, password) {
     } catch (error) {
         showToast('Erro de conexão', 'error');
         console.error('Erro no login:', error);
+        console.log('Fetch error details:', error);
     } finally {
         hideLoading();
     }
@@ -176,7 +191,60 @@ async function apiRequest(endpoint, options = {}) {
 // Feedback Flow
 function selectFeedbackType(type) {
     app.feedbackData.type = type;
-    showScreen('sectorScreen');
+    if (type === 'experiencia') {
+        showScreen('experienceSubtypeScreen');
+    } else {
+        showScreen('sectorScreen');
+    }
+}
+
+async function showDailyEvolutionChart() {
+    showLoading();
+    const data = await apiRequest('/feedback/stats/daily_evolution');
+    hideLoading();
+
+    if (data) {
+        renderDailyEvolutionChart(data);
+        showScreen('dailyEvolutionChartScreen');
+    } else {
+        showToast('Não foi possível carregar os dados de evolução.', 'error');
+    }
+}
+
+function renderDailyEvolutionChart(data) {
+    const ctx = document.getElementById('dailyEvolutionChart').getContext('2d');
+    
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: data.dates,
+            datasets: [{
+                label: 'Média de Notas Diárias',
+                data: data.averages,
+                borderColor: 'rgba(75, 192, 192, 1)',
+                backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                fill: true,
+                tension: 0.1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 5
+                }
+            }
+        }
+    });
+}
+
+function selectExperienceSubtype(subtype) {
+    app.feedbackData.subtype = subtype;
+    app.feedbackData.sector = null; // Limpar setor para experiência
+    loadEmployees(null, true); // Carregar funcionários em experiência
+    showScreen('employeeScreen');
 }
 
 async function loadSectors() {
@@ -347,11 +415,8 @@ async function saveUser(event) {
         form.reset();
         renderModalUserForm();
         
-        // Recarregar lista de usuários
-        const users = await apiRequest('/usuarios');
-        if (users) {
-            renderModalUserList(users);
-        }
+        // Forçar recarregamento da lista de usuários
+        showUserManagement();
     } catch (error) {
         showToast('Erro ao salvar usuário', 'error');
     }
@@ -363,11 +428,8 @@ async function deleteUser(id) {
             await apiRequest(`/usuarios/${id}`, { method: 'DELETE' });
             showToast('Usuário excluído com sucesso!', 'success');
             
-            // Recarregar lista de usuários
-            const users = await apiRequest('/usuarios');
-            if (users) {
-                renderModalUserList(users);
-            }
+            // Forçar recarregamento da lista de usuários
+            showUserManagement();
         } catch (error) {
             showToast('Erro ao excluir usuário', 'error');
         }
@@ -505,11 +567,8 @@ async function saveSector(event) {
         form.reset();
         renderModalSectorForm();
         
-        // Recarregar lista de setores
-        const sectors = await apiRequest('/setores');
-        if (sectors) {
-            renderModalSectorList(sectors);
-        }
+        // Forçar recarregamento da lista de setores
+        showSectorManagement();
     } catch (error) {
         showToast('Erro ao salvar setor', 'error');
     }
@@ -521,11 +580,8 @@ async function deleteSector(id) {
             await apiRequest(`/setores/${id}`, { method: 'DELETE' });
             showToast('Setor excluído com sucesso!', 'success');
             
-            // Recarregar lista de setores
-            const sectors = await apiRequest('/setores');
-            if (sectors) {
-                renderModalSectorList(sectors);
-            }
+            // Forçar recarregamento da lista de setores
+            showSectorManagement();
         } catch (error) {
             showToast('Erro ao excluir setor', 'error');
         }
@@ -581,9 +637,10 @@ function renderModalEmployeeList(employees, sectors) {
                     <thead>
                         <tr>
                             <th>Nome</th>
-                            <th>Cargo</th>
-                            <th>Setor</th>
-                            <th>Ações</th>
+                        <th>Cargo</th>
+                        <th>Setor</th>
+                        <th>Experiência</th>
+                        <th>Ações</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -592,6 +649,11 @@ function renderModalEmployeeList(employees, sectors) {
                                 <td>${employee.nome}</td>
                                 <td>${employee.cargo || '<span class="text-muted">Sem cargo</span>'}</td>
                                 <td><span class="sector-badge">${sectors.find(s => s.id === employee.setor_id)?.nome || 'N/A'}</span></td>
+                                <td>
+                                    ${employee.em_experiencia 
+                                        ? `<span class="badge badge-warning">Sim (Fim: ${new Date(employee.data_fim_experiencia).toLocaleDateString('pt-BR')})</span>` 
+                                        : '<span class="badge badge-secondary">Não</span>'}
+                                </td>
                                 <td>
                                     <button class="btn-edit" onclick="renderModalEmployeeForm(${JSON.stringify(employee).replace(/"/g, "'")}, ${JSON.stringify(sectors).replace(/"/g, "'")})"><i class="fas fa-edit"></i></button>
                                     <button class="btn-delete" onclick="deleteEmployee(${employee.id})" title="Excluir funcionário"><i class="fas fa-trash"></i></button>
@@ -629,6 +691,21 @@ function renderModalEmployeeForm(employee = null, sectors) {
                         ${sectors.map(sector => `<option value="${sector.id}" ${employee && employee.setor_id === sector.id ? 'selected' : ''}>${sector.nome}</option>`).join('')}
                     </select>
                 </div>
+                <div class="form-group">
+                    <label for="admissionDate">Data de Admissão</label>
+                    <input type="date" id="admissionDate" name="data_admissao" value="${employee && employee.data_admissao ? employee.data_admissao.split('T')[0] : new Date().toISOString().split('T')[0]}" required>
+                </div>
+                <div class="form-group form-check">
+                    <input type="checkbox" id="inExperience" name="em_experiencia" ${employee && employee.em_experiencia ? 'checked' : ''} onchange="toggleExperienceFields(this.checked)">
+                    <label for="inExperience">Em período de experiência?</label>
+                </div>
+                <div id="experienceFields" class="${employee && employee.em_experiencia ? '' : 'hidden'}">
+                    <div class="form-group">
+                        <label for="experienceEndDate">Data Fim da Experiência (1º Período)</label>
+                        <input type="date" id="experienceEndDate" name="data_fim_experiencia" value="${employee && employee.data_fim_experiencia ? employee.data_fim_experiencia.split('T')[0] : ''}">
+                        <small>Deixe em branco para calcular 45 dias da admissão. Você pode prorrogar por mais 45 dias editando este campo.</small>
+                    </div>
+                </div>
                 <div class="modal-form-actions">
                     <button type="submit" class="btn-primary">
                         <i class="fas fa-save"></i>
@@ -641,6 +718,15 @@ function renderModalEmployeeForm(employee = null, sectors) {
     `;
 
     document.getElementById('modalEmployeeForm').onsubmit = saveEmployee;
+}
+
+function toggleExperienceFields(checked) {
+    const fields = document.getElementById('experienceFields');
+    if (checked) {
+        fields.classList.remove('hidden');
+    } else {
+        fields.classList.add('hidden');
+    }
 }
 
 async function saveEmployee(event) {
@@ -663,10 +749,23 @@ async function saveEmployee(event) {
         return;
     }
     
+    const em_experiencia = formData.get('em_experiencia') === 'on';
+    const data_admissao = formData.get('data_admissao');
+    let data_fim_experiencia = formData.get('data_fim_experiencia');
+
+    if (em_experiencia && !data_fim_experiencia) {
+        const admission = new Date(data_admissao);
+        admission.setDate(admission.getDate() + 45);
+        data_fim_experiencia = admission.toISOString().split('T')[0];
+    }
+
     const data = {
         nome: nome,
         cargo: cargo || null,
-        setor_id: parseInt(setor_id)
+        setor_id: parseInt(setor_id),
+        em_experiencia: em_experiencia,
+        data_admissao: data_admissao,
+        data_fim_experiencia: em_experiencia ? data_fim_experiencia : null
     };
 
     try {
@@ -678,19 +777,8 @@ async function saveEmployee(event) {
             showToast('Funcionário criado com sucesso!', 'success');
         }
         
-        // Limpar formulário e recarregar lista
-        form.reset();
-        
-        // Recarregar dados
-        const [employees, sectors] = await Promise.all([
-            apiRequest('/funcionarios'),
-            apiRequest('/setores')
-        ]);
-        
-        if (employees && sectors) {
-            renderModalEmployeeList(employees, sectors);
-            renderModalEmployeeForm(null, sectors);
-        }
+        // Forçar recarregamento da lista de funcionários
+        showEmployeeManagement();
     } catch (error) {
         showToast('Erro ao salvar funcionário', 'error');
     }
@@ -702,15 +790,8 @@ async function deleteEmployee(id) {
             await apiRequest(`/funcionarios/${id}`, { method: 'DELETE' });
             showToast('Funcionário excluído com sucesso!', 'success');
             
-            // Recarregar dados
-            const [employees, sectors] = await Promise.all([
-                apiRequest('/funcionarios'),
-                apiRequest('/setores')
-            ]);
-            
-            if (employees && sectors) {
-                renderModalEmployeeList(employees, sectors);
-            }
+            // Forçar recarregamento da lista de funcionários
+            showEmployeeManagement();
         } catch (error) {
             showToast('Erro ao excluir funcionário', 'error');
         }
@@ -917,33 +998,62 @@ function renderSectors() {
 
 function selectSector(sectorId, sectorName) {
     app.feedbackData.sector = { id: sectorId, name: sectorName };
+    loadEmployees(sectorId);
     showScreen('employeeScreen');
 }
 
-async function loadEmployees() {
-    if (!app.feedbackData.sector) return;
-    
+async function loadEmployees(sectorId = null, inExperience = false) {
+    let url = '/funcionarios';
+    const params = new URLSearchParams();
+
+    if (inExperience) {
+        params.append('em_experiencia', 'true');
+    } else if (sectorId) {
+        params.append('setor_id', sectorId);
+    } else if (app.feedbackData.sector) {
+        params.append('setor_id', app.feedbackData.sector.id);
+    } else {
+        // Se nenhum filtro for especificado, não carregar nada ou carregar todos?
+        // Por enquanto, não faz nada se não houver setor (exceto para experiência)
+        return;
+    }
+
+    if (params.toString()) {
+        url += `?${params.toString()}`;
+    }
+
     showLoading();
-    
-    const employees = await apiRequest(`/funcionarios?setor_id=${app.feedbackData.sector.id}`);
-    
+    const employees = await apiRequest(url);
     if (employees) {
         app.employees = employees;
         renderEmployees();
     }
-    
     hideLoading();
 }
 
 function renderEmployees() {
     const employeeList = document.getElementById('employeeList');
     
-    employeeList.innerHTML = app.employees.map(employee => `
-        <div class="list-item" onclick="selectEmployee(${employee.id}, '${employee.nome}')">
-            <h4>${employee.nome}</h4>
-            <p>${employee.cargo || 'Cargo não informado'}</p>
-        </div>
-    `).join('');
+    employeeList.innerHTML = app.employees.map(employee => {
+        let experienceInfo = '';
+        if (employee.em_experiencia) {
+            const endDate = new Date(employee.data_fim_experiencia);
+            const today = new Date();
+            const remainingDays = Math.ceil((endDate - today) / (1000 * 60 * 60 * 24));
+            const badgeClass = remainingDays <= 7 ? 'badge-danger' : remainingDays <= 15 ? 'badge-warning' : 'badge-info';
+            experienceInfo = `<span class="badge ${badgeClass}">Experiência: ${remainingDays} dias restantes</span>`;
+            const diffTime = endDate - today;
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            experienceInfo = `<span class="experience-badge">Expira em ${diffDays} dias</span>`;
+        }
+        
+        return `
+            <div class="list-item" onclick="selectEmployee(${employee.id}, '${employee.nome}')">
+                <h4>${employee.nome} ${experienceInfo}</h4>
+                <p>${employee.cargo || 'Cargo não informado'}</p>
+            </div>
+        `;
+    }).join('');
 }
 
 function selectEmployee(employeeId, employeeName) {
@@ -954,17 +1064,25 @@ function selectEmployee(employeeId, employeeName) {
 async function showFeedbackForm() {
     showScreen('feedbackFormScreen');
     
+    const employee = app.employees.find(e => e.id === app.feedbackData.employee.id);
+    const sector = app.feedbackData.sector ? app.sectors.find(s => s.id === app.feedbackData.sector.id) : null;
+
     // Atualizar informações do feedback
     document.getElementById('selectedType').textContent = app.feedbackData.type;
-    document.getElementById('selectedSector').textContent = app.feedbackData.sector.name;
+    document.getElementById('selectedSector').textContent = sector ? sector.nome : 'N/A';
     document.getElementById('selectedEmployee').textContent = app.feedbackData.employee.name;
     
     const formTitle = document.getElementById('feedbackFormTitle');
-    const feedbackForm = document.getElementById('feedbackForm');
     
     if (app.feedbackData.type === 'diario') {
         formTitle.textContent = 'Avaliação Diária';
         await renderDailyForm();
+    } else if (app.feedbackData.type === 'diario_experiencia') {
+        formTitle.textContent = 'Avaliação Diária de Experiência';
+        await renderDailyExperienceForm();
+    } else if (app.feedbackData.type === 'final_experiencia') {
+        formTitle.textContent = 'Avaliação Final de Experiência';
+        await renderFinalExperienceForm();
     } else {
         formTitle.textContent = app.feedbackData.type === 'positiva' ? 'Ocorrência Positiva' : 'Ocorrência Negativa';
         renderOccurrenceForm();
@@ -1003,6 +1121,82 @@ async function renderDailyForm() {
     }
     
     hideLoading();
+}
+
+async function renderDailyExperienceForm() {
+    showLoading();
+    const employee = app.employees.find(e => e.id === app.feedbackData.employee.id);
+    const endDate = new Date(employee.data_fim_experiencia);
+    const attributes = await apiRequest(`/atributos?setor_id=${app.feedbackData.sector.id}`);
+    
+    if (attributes && attributes.atributos) {
+        app.attributes = attributes.atributos;
+        
+        const feedbackForm = document.getElementById('feedbackForm');
+        
+        feedbackForm.innerHTML = `
+            <div class="experience-info">
+                <p><strong>Fim do período de experiência:</strong> ${endDate.toLocaleDateString('pt-BR')}</p>
+            </div>
+            ${app.attributes.map(attr => `
+                <div class="rating-group">
+                    <label>${attr}</label>
+                    <div class="rating-stars" data-attribute="${attr}">
+                        ${[1,2,3,4,5].map(i => `
+                            <span class="star" data-value="${i}" onclick="setRating('${attr}', ${i})">★</span>
+                        `).join('')}
+                        <span class="rating-value" id="rating-${attr}">0/5</span>
+                    </div>
+                </div>
+            `).join('')}
+            <button type="submit" class="btn-primary">
+                <i class="fas fa-save"></i>
+                Salvar Feedback
+            </button>
+        `;
+        
+        feedbackForm.onsubmit = submitDailyFeedback;
+    }
+    
+    hideLoading();
+}
+
+async function renderFinalExperienceForm() {
+    const form = document.getElementById('feedbackForm');
+    const employee = app.employees.find(e => e.id === app.feedbackData.employee.id);
+
+    if (!employee) {
+        showToast('Funcionário não encontrado.', 'error');
+        return;
+    }
+
+    const endDate = new Date(employee.data_fim_experiencia);
+    const remainingDays = Math.ceil((endDate - new Date()) / (1000 * 60 * 60 * 24));
+
+    form.innerHTML = `
+        <div class="experience-info">
+            <p><strong>Fim do período de experiência:</strong> ${endDate.toLocaleDateString('pt-BR')}</p>
+            <p><strong>Dias restantes:</strong> ${remainingDays}</p>
+        </div>
+        <div class="form-group">
+            <label for="experience_details">Relatório do líder sobre os motivos da efetivação ou não</label>
+            <textarea id="experience_details" name="detalhes" rows="5" required></textarea>
+        </div>
+        <div class="form-group">
+            <label>Recomendação</label>
+            <div class="radio-group">
+                <input type="radio" id="recomenda_sim" name="recomenda" value="true" required>
+                <label for="recomenda_sim">Recomendo a efetivação</label>
+            </div>
+            <div class="radio-group">
+                <input type="radio" id="recomenda_nao" name="recomenda" value="false">
+                <label for="recomenda_nao">Não recomendo a efetivação</label>
+            </div>
+        </div>
+        <button type="submit" class="btn-primary">Enviar Feedback</button>
+    `;
+
+    form.onsubmit = submitExperienceFeedback;
 }
 
 function renderOccurrenceForm() {
@@ -1064,6 +1258,20 @@ async function submitDailyFeedback(event) {
     });
 }
 
+async function submitExperienceFeedback(event) {
+    event.preventDefault();
+    const form = event.target;
+    const formData = new FormData(form);
+    const data = {
+        tipo: app.feedbackData.type, // será 'final_experiencia'
+        detalhes: formData.get('detalhes'),
+        recomenda_efetivacao: formData.get('recomenda') === 'true',
+        funcionario_id: app.feedbackData.employee.id,
+    };
+
+    await submitFeedback(data);
+}
+
 async function submitOccurrenceFeedback(event) {
     event.preventDefault();
     
@@ -1095,6 +1303,7 @@ async function submitFeedback(feedbackData) {
         // Reset feedback data
         app.feedbackData = { type: null, sector: null, employee: null };
         
+        // Forçar recarregamento da tela inicial
         showScreen('dashboardScreen');
     }
     
@@ -1129,10 +1338,16 @@ function renderHistory(feedbacks) {
         const date = new Date(feedback.data_feedback).toLocaleString('pt-BR');
         
         let content = '';
-        if (feedback.tipo === 'diario' && feedback.avaliacoes) {
-            content = Object.entries(feedback.avaliacoes)
-                .map(([attr, nota]) => `${attr}: ${nota}/5`)
-                .join(', ');
+        if ((feedback.tipo === 'diario' || feedback.tipo === 'diario_experiencia') && feedback.avaliacoes) {
+            content = '<ul>' + Object.entries(feedback.avaliacoes)
+                .map(([attr, nota]) => `<li>${attr}: ${nota}/5</li>`)
+                .join('') + '</ul>';
+        } else if (feedback.tipo === 'final_experiencia') {
+            content = `<p><strong>Relatório:</strong> ${feedback.detalhes || 'Não informado'}</p>` +
+                      `<p><strong>Recomendação:</strong> ${feedback.recomenda_efetivacao ? 'Efetivar' : 'Não efetivar'}</p>`;
+        } else if (feedback.tipo === 'experiencia') { // Manter compatibilidade com feedbacks antigos
+             content = `<p><strong>Detalhes:</strong> ${feedback.detalhes || 'Não informado'}</p>` +
+                       `<p><strong>Recomendação:</strong> ${feedback.recomenda_efetivacao ? 'Efetivar' : 'Não efetivar'}</p>`;
         } else {
             content = feedback.descricao || 'Sem descrição';
         }
@@ -1212,6 +1427,10 @@ async function showStats() {
                 <div class="stat-item">
                     <h4>Ocorrências Negativas</h4>
                     <p class="stat-number">${stats.feedbacks_negativos}</p>
+                </div>
+                <div class="stat-item">
+                    <h4>Feedbacks de Experiência</h4>
+                    <p class="stat-number">${stats.feedbacks_experiencia || 0}</p>
                 </div>
             </div>
             ${stats.stats_por_setor ? `

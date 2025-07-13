@@ -59,6 +59,9 @@ class Funcionario(db.Model):
     nome = db.Column(db.String(100), nullable=False)
     setor_id = db.Column(db.Integer, db.ForeignKey('setor.id'), nullable=False)
     cargo = db.Column(db.String(100))
+    data_admissao = db.Column(db.Date, default=datetime.utcnow)
+    em_experiencia = db.Column(db.Boolean, default=False)
+    data_fim_experiencia = db.Column(db.Date, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     is_active = db.Column(db.Boolean, default=True)
     
@@ -75,13 +78,16 @@ class Funcionario(db.Model):
             'setor_id': self.setor_id,
             'setor_nome': self.setor.nome if self.setor else None,
             'cargo': self.cargo,
+            'data_admissao': self.data_admissao.isoformat() if self.data_admissao else None,
+            'em_experiencia': self.em_experiencia,
+            'data_fim_experiencia': self.data_fim_experiencia.isoformat() if self.data_fim_experiencia else None,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'is_active': self.is_active
         }
 
 class Feedback(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    tipo = db.Column(db.String(50), nullable=False)  # 'diario', 'positiva', 'negativa'
+    tipo = db.Column(db.String(50), nullable=False)  # 'diario', 'positiva', 'negativa', 'experiencia'
     funcionario_id = db.Column(db.Integer, db.ForeignKey('funcionario.id'), nullable=False)
     autor_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     data_feedback = db.Column(db.DateTime, default=datetime.utcnow)
@@ -91,6 +97,10 @@ class Feedback(db.Model):
     
     # Para ocorrências positivas/negativas
     descricao = db.Column(db.Text)
+
+    # Para feedback de experiência
+    detalhes = db.Column(db.Text)
+    recomenda_efetivacao = db.Column(db.Boolean)
     
     # Controle de sincronização com Google Sheets
     sincronizado_sheets = db.Column(db.Boolean, default=False)
@@ -116,6 +126,8 @@ class Feedback(db.Model):
             'data_feedback': self.data_feedback.isoformat() if self.data_feedback else None,
             'avaliacoes': self.avaliacoes,
             'descricao': self.descricao,
+            'detalhes': self.detalhes,
+            'recomenda_efetivacao': self.recomenda_efetivacao,
             'sincronizado_sheets': self.sincronizado_sheets,
             'data_sincronizacao': self.data_sincronizacao.isoformat() if self.data_sincronizacao else None,
             'created_at': self.created_at.isoformat() if self.created_at else None

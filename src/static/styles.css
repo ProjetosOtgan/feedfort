@@ -337,7 +337,11 @@ body {
 }
 
 .type-card.negative {
-    border-color: #e74c3c;
+    border-left-color: #e74c3c;
+}
+
+.type-card.experience {
+    border-left-color: #3498db;
 }
 
 .type-card.negative i {

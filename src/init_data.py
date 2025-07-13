@@ -11,8 +11,10 @@ def init_default_data():
             email='admin@feedback.com',
             user_type='admin'
         )
-        admin_user.set_password('admin123')
         db.session.add(admin_user)
+    
+    # Sempre define a senha para garantir que seja a padrão
+    admin_user.set_password('admin123')
     
     # Criar usuário comum padrão
     common_user = User.query.filter_by(username='usuario').first()

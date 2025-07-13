@@ -1,6 +1,7 @@
 from flask import Blueprint, jsonify, request
 from datetime import datetime
 from src.models.user import Feedback, Funcionario, Setor, db
+from sqlalchemy import func
 from src.auth import token_required, admin_required, get_current_user
 
 feedback_bp = Blueprint('feedback', __name__)
@@ -23,8 +24,9 @@ def create_feedback():
                 return jsonify({'message': f'Campo {field} é obrigatório'}), 400
         
         # Validar tipo de feedback
-        if data['tipo'] not in ['diario', 'positiva', 'negativa']:
-            return jsonify({'message': 'Tipo de feedback deve ser: diario, positiva ou negativa'}), 400
+        allowed_types = ['diario', 'positiva', 'negativa', 'experiencia', 'diario_experiencia', 'final_experiencia']
+        if data['tipo'] not in allowed_types:
+            return jsonify({'message': f'Tipo de feedback deve ser um de: {allowed_types}'}), 400
         
         # Verificar se funcionário existe
         funcionario = Funcionario.query.get(data['funcionario_id'])
@@ -44,6 +46,17 @@ def create_feedback():
         elif data['tipo'] in ['positiva', 'negativa']:
             if 'descricao' not in data or not data['descricao'].strip():
                 return jsonify({'message': 'Descrição é obrigatória para ocorrências'}), 400
+        elif data['tipo'] == 'diario_experiencia':
+            if 'avaliacoes' not in data or not data['avaliacoes']:
+                return jsonify({'message': 'Avaliações são obrigatórias para feedback diário de experiência'}), 400
+            for atributo, nota in data['avaliacoes'].items():
+                if not isinstance(nota, (int, float)) or nota < 0 or nota > 5:
+                    return jsonify({'message': f'Nota para {atributo} deve ser entre 0 e 5'}), 400
+        elif data['tipo'] == 'final_experiencia':
+            if 'detalhes' not in data or not data['detalhes'].strip():
+                return jsonify({'message': 'Detalhes são obrigatórios para feedback final de experiência'}), 400
+            if 'recomenda_efetivacao' not in data:
+                return jsonify({'message': 'Recomendação de efetivação é obrigatória'}), 400
         
         # Criar feedback
         feedback = Feedback(
@@ -52,6 +65,8 @@ def create_feedback():
             autor_id=current_user.id,
             avaliacoes=data.get('avaliacoes'),
             descricao=data.get('descricao', '').strip() if data.get('descricao') else None,
+            detalhes=data.get('detalhes'),
+            recomenda_efetivacao=data.get('recomenda_efetivacao'),
             data_feedback=datetime.utcnow()
         )
         
@@ -135,6 +150,37 @@ def get_feedback(feedback_id):
         
         return jsonify(feedback.to_dict()), 200
         
+    except Exception as e:
+        return jsonify({'message': f'Erro interno: {str(e)}'}), 500
+
+@feedback_bp.route('/feedback/stats/daily_evolution', methods=['GET'])
+@token_required
+@admin_required
+def get_daily_evolution_stats():
+    """Calcula a evolução da média diária de notas para feedbacks de experiência."""
+    try:
+        # Subquery para extrair a nota de cada avaliação
+        # Acessa a chave 'nota' dentro do JSON 'avaliacoes'
+        subquery = db.session.query(
+            Feedback.data_feedback,
+            func.json_extract(Feedback.avaliacoes, '$.nota').label('nota')
+        ).filter(
+            Feedback.tipo == 'diario_experiencia',
+            Feedback.avaliacoes.isnot(None)
+        ).subquery()
+
+        # Query principal para agrupar por dia e calcular a média
+        results = db.session.query(
+            func.date(subquery.c.data_feedback).label('data'),
+            func.avg(subquery.c.nota).label('media_nota')
+        ).group_by('data').order_by('data').all()
+
+        # Formatar os resultados
+        dates = [res.data.strftime('%d/%m/%Y') for res in results]
+        averages = [float(res.media_nota) for res in results]
+
+        return jsonify({'dates': dates, 'averages': averages}), 200
+
     except Exception as e:
         return jsonify({'message': f'Erro interno: {str(e)}'}), 500
 
@@ -253,6 +299,7 @@ def get_feedback_stats():
         feedbacks_diarios = query.filter_by(tipo='diario').count()
         feedbacks_positivos = query.filter_by(tipo='positiva').count()
         feedbacks_negativos = query.filter_by(tipo='negativa').count()
+        feedbacks_experiencia = query.filter_by(tipo='experiencia').count()
         
         # Estatísticas por setor (apenas para admin)
         stats_por_setor = []
@@ -266,13 +313,15 @@ def get_feedback_stats():
                     'total_feedbacks': setor_query.count(),
                     'feedbacks_diarios': setor_query.filter(Feedback.tipo == 'diario').count(),
                     'feedbacks_positivos': setor_query.filter(Feedback.tipo == 'positiva').count(),
-                    'feedbacks_negativos': setor_query.filter(Feedback.tipo == 'negativa').count()
+                    'feedbacks_negativos': setor_query.filter(Feedback.tipo == 'negativa').count(),
+                    'feedbacks_experiencia': setor_query.filter(Feedback.tipo == 'experiencia').count()
                 })
         
         return jsonify({
             'total_feedbacks': total_feedbacks,
             'feedbacks_diarios': feedbacks_diarios,
             'feedbacks_positivos': feedbacks_positivos,
+            'feedbacks_experiencia': feedbacks_experiencia,
             'feedbacks_negativos': feedbacks_negativos,
             'stats_por_setor': stats_por_setor
         }), 200

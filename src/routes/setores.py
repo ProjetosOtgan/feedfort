@@ -1,4 +1,5 @@
 from flask import Blueprint, jsonify, request
+from datetime import datetime, timedelta
 from src.models.user import Setor, Funcionario, db
 from src.auth import token_required, admin_required, get_current_user
 
@@ -171,9 +172,27 @@ def get_funcionarios():
         
         if setor_id:
             query = query.filter_by(setor_id=setor_id)
+
+        # Filtro para funcionários em experiência
+        em_experiencia_str = request.args.get('em_experiencia', 'false').lower()
+        if em_experiencia_str == 'true':
+            hoje = datetime.utcnow().date()
+            query = query.filter(Funcionario.em_experiencia == True, Funcionario.data_fim_experiencia >= hoje)
         
         funcionarios = query.all()
-        return jsonify([funcionario.to_dict() for funcionario in funcionarios]), 200
+        
+        funcionarios_list = []
+        for f in funcionarios:
+            f_dict = f.to_dict()
+            if f.em_experiencia and f.data_fim_experiencia:
+                hoje = datetime.utcnow().date()
+                dias_restantes = (f.data_fim_experiencia - hoje).days
+                f_dict['dias_restantes_experiencia'] = dias_restantes if dias_restantes >= 0 else 0
+            else:
+                f_dict['dias_restantes_experiencia'] = None
+            funcionarios_list.append(f_dict)
+            
+        return jsonify(funcionarios_list), 200
         
     except Exception as e:
         return jsonify({'message': f'Erro interno: {str(e)}'}), 500
@@ -204,10 +223,19 @@ def create_funcionario():
         if not setor:
             return jsonify({'message': 'Setor não encontrado'}), 404
         
+        data_admissao = datetime.strptime(data['data_admissao'], '%Y-%m-%d').date() if data.get('data_admissao') else datetime.utcnow().date()
+        em_experiencia = data.get('em_experiencia', False)
+        data_fim_experiencia = None
+        if em_experiencia:
+            data_fim_experiencia = data_admissao + timedelta(days=45)
+
         funcionario = Funcionario(
             nome=data['nome'],
             setor_id=data['setor_id'],
-            cargo=data.get('cargo', '')
+            cargo=data.get('cargo', ''),
+            data_admissao=data_admissao,
+            em_experiencia=em_experiencia,
+            data_fim_experiencia=data_fim_experiencia
         )
         
         db.session.add(funcionario)
@@ -243,7 +271,24 @@ def update_funcionario(funcionario_id):
         
         if 'cargo' in data:
             funcionario.cargo = data['cargo']
-        
+
+        if 'data_admissao' in data:
+            funcionario.data_admissao = datetime.strptime(data['data_admissao'], '%Y-%m-%d').date()
+
+        if 'em_experiencia' in data:
+            funcionario.em_experiencia = data['em_experiencia']
+            if funcionario.em_experiencia:
+                # Se data_fim_experiencia não for fornecida, calcula 45 dias da admissão
+                if 'data_fim_experiencia' not in data or not data['data_fim_experiencia']:
+                    admissao = funcionario.data_admissao or datetime.utcnow().date()
+                    funcionario.data_fim_experiencia = admissao + timedelta(days=45)
+                else:
+                    funcionario.data_fim_experiencia = datetime.strptime(data['data_fim_experiencia'], '%Y-%m-%d').date()
+            else:
+                funcionario.data_fim_experiencia = None
+        elif 'data_fim_experiencia' in data and data['data_fim_experiencia']:
+             funcionario.data_fim_experiencia = datetime.strptime(data['data_fim_experiencia'], '%Y-%m-%d').date()
+
         if 'is_active' in data:
             funcionario.is_active = data['is_active']
         
