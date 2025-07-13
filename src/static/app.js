@@ -1328,15 +1328,15 @@ async function loadHistory() {
 
 function renderHistory(feedbacks) {
     const historyList = document.getElementById('historyList');
-    
+
     if (feedbacks.length === 0) {
         historyList.innerHTML = '<p class="text-center">Nenhum feedback encontrado.</p>';
         return;
     }
-    
+
     historyList.innerHTML = feedbacks.map(feedback => {
         const date = new Date(feedback.data_feedback).toLocaleString('pt-BR');
-        
+
         let content = '';
         if ((feedback.tipo === 'diario' || feedback.tipo === 'diario_experiencia') && feedback.avaliacoes) {
             content = '<ul>' + Object.entries(feedback.avaliacoes)
@@ -1351,7 +1351,9 @@ function renderHistory(feedbacks) {
         } else {
             content = feedback.descricao || 'Sem descrição';
         }
-        
+
+        const isAdmin = app.user && app.user.user_type === 'admin';
+
         return `
             <div class="history-item ${feedback.tipo}">
                 <div class="history-header">
@@ -1359,6 +1361,7 @@ function renderHistory(feedbacks) {
                     <span class="history-date">${date}</span>
                 </div>
                 <div class="history-details">
+                    ${isAdmin ? `<p><strong>Usuário:</strong> ${feedback.autor_username}</p>` : ''}
                     <p><strong>Funcionário:</strong> ${feedback.funcionario_nome}</p>
                     <p><strong>Setor:</strong> ${feedback.setor_nome}</p>
                     <p><strong>Conteúdo:</strong> ${content}</p>
